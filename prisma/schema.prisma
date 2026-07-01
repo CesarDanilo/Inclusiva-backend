@@ -1,13 +1,75 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// schema.prisma
 
 generator client {
-  provider = "prisma-client"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  provas       Prova[]
+
+  @@map("users")
+}
+
+model Perfil {
+  id           String   @id @default(uuid())
+  nome         String   @unique // TEA, TDAH, Dislexia...
+  descricao    String
+  diretrizesIA String   @db.Text // prompt-base injetado no Motor de IA
+  createdAt    DateTime @default(now())
+
+  adaptacoes   AdaptacaoProva[]
+
+  @@map("perfis")
+}
+
+model Prova {
+  id               String   @id @default(uuid())
+  userId           String
+  titulo           String
+  conteudoOriginal String   @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  adaptacoes  AdaptacaoProva[]
+
+  @@index([userId])
+  @@map("provas")
+}
+
+model AdaptacaoProva {
+  id                String          @id @default(uuid())
+  provaId           String
+  perfilId          String
+  status            StatusAdaptacao @default(PROCESSANDO)
+  conteudoAdaptado  String?         @db.Text // sugestão da IA, imutável (auditoria)
+  conteudoFinal     String?         @db.Text // edição do professor; null = ainda não revisado
+  justificativa     String?         @db.Text // explicação pedagógica da IA
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  prova   Prova  @relation(fields: [provaId], references: [id], onDelete: Cascade)
+  perfil  Perfil @relation(fields: [perfilId], references: [id], onDelete: Restrict)
+
+  @@index([provaId])
+  @@index([perfilId])
+  @@map("adaptacoes_prova")
+}
+
+enum StatusAdaptacao {
+  PROCESSANDO
+  SUGERIDA
+  APROVADA
+  EXPORTADA
 }
